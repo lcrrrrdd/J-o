@@ -1,0 +1,1370 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ondas + Tradutor ESP32 (DevKit 38 pinos)</title>
+<style>
+:root{--bg:#0f1419;--card:#1a2129;--txt:#e6edf3;--mut:#8b98a5;--ok:#3fb950;--err:#f85149;--acc:#58a6ff;--bd:#30363d}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,sans-serif;background:var(--bg);color:var(--txt);padding:14px;max-width:1100px;margin-inline:auto}
+h1{font-size:1.15rem;margin:0 0 10px}
+.card{background:var(--card);border-radius:10px;padding:12px;margin-bottom:12px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+button,select,input,textarea{font:inherit;padding:6px 10px;border-radius:6px;border:1px solid var(--bd);background:#21262d;color:var(--txt)}
+button{cursor:pointer}button:hover{background:var(--bd)}button:disabled{opacity:.5;cursor:not-allowed}
+button.p{background:var(--acc);color:#0b1520;border-color:var(--acc);font-weight:600}
+label,.mut{color:var(--mut);font-size:.88rem}
+#dot{width:10px;height:10px;border-radius:50%;background:var(--err);display:inline-block}#dot.on{background:var(--ok)}
+#wave{width:100%;display:block;background:#0b0f13;border-radius:6px}
+.tabs{display:flex;gap:4px;margin-bottom:10px;border-bottom:1px solid var(--bd)}
+.tabs button{border:0;border-radius:6px 6px 0 0;background:none;color:var(--mut)}
+.tabs button.on{background:#21262d;color:var(--txt);font-weight:600}
+.pane{display:none}.pane.on{display:block}
+textarea.code{width:100%;height:300px;font:13px/1.5 ui-monospace,Consolas,monospace;background:#0b0f13;white-space:pre;tab-size:2;resize:vertical}
+.ia{color:#d2a8ff}
+#log{height:240px;overflow:auto;background:#0b0f13;border-radius:6px;padding:10px;font:13px/1.5 ui-monospace,Consolas,monospace;white-space:pre-wrap}
+.ts{color:var(--mut)}.tx{color:var(--acc)}.dec{color:var(--ok);font-weight:600}
+table{width:100%;border-collapse:collapse;margin-top:8px}
+th,td{border:1px solid var(--bd);padding:6px 10px;text-align:left;font-size:0.9rem}
+th{background:#21262d;color:var(--mut)}
+input.editable-name{background:transparent;border:1px solid transparent;color:var(--txt);padding:2px 4px;border-radius:4px;width:100%}
+input.editable-name:focus,input.editable-name:hover{border-color:var(--bd);background:#21262d}
+
+/* Estilo do Card Widget inspirado na imagem fornecida */
+.display-card-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 10px;
+  margin-bottom: 10px;
+}
+.display-card {
+  background: #0d1117;
+  border: 1px solid #30363d;
+  border-radius: 10px;
+  padding: 16px 24px;
+  min-width: 200px;
+  flex: 1 1 200px;
+  max-width: 320px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  position: relative;
+}
+.display-card .card-title {
+  color: #8b98a5;
+  font-size: 0.95rem;
+  margin-bottom: 6px;
+  text-align: center;
+  font-weight: 500;
+}
+.display-card .card-value {
+  color: #58a6ff;
+  font-size: 1.8rem;
+  font-weight: 700;
+  text-align: center;
+  word-break: break-word;
+}
+.display-card .card-close {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  background: transparent;
+  border: none;
+  color: #8b98a5;
+  font-size: 0.9rem;
+  cursor: pointer;
+  padding: 2px 6px;
+}
+.display-card .card-close:hover {
+  color: #f85149;
+}
+.btn-eye {
+  background: #21262d;
+  border: 1px solid var(--bd);
+  color: var(--txt);
+  padding: 2px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-right: 4px;
+}
+.btn-eye:hover {
+  background: #30363d;
+  color: var(--acc);
+}
+.btn-eye.active {
+  border-color: var(--acc);
+  color: var(--acc);
+  background: rgba(88, 166, 255, 0.15);
+}
+</style>
+</head>
+<body>
+<h1>Ondas + Tradutor ESP32</h1>
+<div class="row" style="margin-bottom:10px">
+  <button id="bSalvarProj">Salvar projeto</button><button id="bAbrirProj">Abrir projeto</button>
+  <span id="projSt" class="mut"></span>
+  <input type="file" id="arqProj" accept=".json,application/json" style="display:none">
+</div>
+
+<div class="card row">
+  <label>Conexão</label>
+  <select id="via"><option value="usb">USB (Serial)</option><option value="wifi">Wi-Fi</option><option value="ble">Bluetooth</option></select>
+  <span id="fUsb" class="row"><label>Baud</label><select id="baud"><option>9600</option><option>57600</option><option>115200</option><option selected>460800</option><option>921600</option></select></span>
+  <span id="fWifi" class="row" style="display:none"><label>IP do ESP</label><input id="ip" value="192.168.4.1" size="14"></span>
+  <button id="bCon" class="p">Conectar</button>
+  <button id="bDes" disabled>Desconectar</button>
+  <span id="dot"></span><span id="st" class="mut">Desconectado</span>
+</div>
+
+<div class="card">
+  <div class="row" style="margin-bottom:8px">
+    <b>Formas de onda</b><label>Janela</label>
+    <select id="jan"><option value="5">5 s</option><option value="10" selected>10 s</option><option value="30">30 s</option><option value="60">60 s</option></select>
+    <button id="bPausa">Pausar</button><button id="bZ">Limpar</button><button id="bSim" title="Gera ondas de teste sem precisar do ESP32">Simular ondas</button>
+    <span class="mut">GPIOs do ESP32 (digital) e ADC1 (analógico, 0 a 4095), lidos a cada 50 ms.</span>
+  </div>
+  
+  <div id="cardsDisplayContainer" class="display-card-container"></div>
+
+  <canvas id="wave"></canvas>
+</div>
+
+<div class="card">
+  <div class="row" style="justify-content:space-between;margin-bottom:8px">
+    <b>Tabela de Gatilhos Personalizados (Serial)</b>
+    <span class="mut">Adicione sensores/contadores: ID, gatilho, nome e unidade. Use R-&gt;ID para resetar contagens.</span>
+  </div>
+  <div class="row" style="margin-bottom:8px; background:#12171d; padding:8px; border-radius:6px;">
+    <input id="novaChave" placeholder="Identificador / ID (ex: cmd1)" style="flex:1;min-width:120px">
+    <input id="novoGatilho" placeholder="Texto gatilho" style="flex:1;min-width:100px">
+    <input id="novoNome" placeholder="Nome descritivo" style="flex:1;min-width:130px">
+    <input id="novoUnidade" placeholder="Unidade (opcional: V, °C...)" style="flex:1;min-width:150px">
+    <select id="novoModo" style="flex:1;min-width:170px">
+      <option value="contagem">Modo 1: Contagem Acumulativa (x-&gt;valor)</option>
+      <option value="toggle">Modo 2: Alternar 0/1</option>
+      <option value="valor">Modo 3: Último valor decimal</option>
+      <option value="sensor">Modo 4: Sensor (último valor exato)</option>
+    </select>
+    <button id="bAddRegra" class="p">Adicionar Linha</button>
+  </div>
+  <div style="max-height:220px;overflow-y:auto">
+    <table id="tabelaRegras">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Texto Gatilho</th>
+          <th>Nome</th>
+          <th>Modo</th>
+          <th>Valor / Estado Atual</th>
+          <th>Ações</th>
+        </tr>
+      </thead>
+      <tbody id="corpoTabelaRegras"></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card">
+  <div class="tabs">
+    <button data-t="js" class="on">Programação do HTML</button>
+    <button data-t="ser">Serial</button>
+    <button data-t="ino">Tabela do Firmware</button>
+    <button data-t="som">Voz e Som</button>
+    <button data-t="ia">IA</button>
+    <button data-t="instr">Instruções</button>
+  </div>
+
+  <div class="pane on" id="js">
+    <div class="row" style="margin-bottom:8px">
+      <button id="bAp" class="p">Aplicar</button>
+      <span class="mut">Funções: <code>aoEnviar</code>, <code>aoReceber</code>, <code>aoMudarPino</code>. Também: <code>enviar()</code>, <code>log()</code>, <code>pinos</code>, <code>tom(freq, ms)</code>.</span>
+    </div>
+    <textarea id="codigo" class="code" spellcheck="false"></textarea>
+  </div>
+
+  <div class="pane" id="ser">
+    <div class="row" style="margin-bottom:8px">
+      <label><input type="checkbox" id="auto" checked> Rolagem automática</label>
+      <button id="bLimpar">Limpar</button><button id="bLog">Baixar log</button>
+    </div>
+    <div id="log"></div>
+    <div class="row" style="margin-top:8px">
+      <input id="envio" placeholder="Digite aqui: passa por aoEnviar() antes de ir ao Arduino" style="flex:1;min-width:200px">
+      <button id="bEnv">Enviar</button><button id="bPerg" class="p">🤖 Perguntar à IA</button>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <button id="bMic">🎤 Microfone: desligado</button>
+      <button id="bMicIA">🎤🤖 Microfone → IA: desligado</button>
+      <button id="bLer">🔊 Ler-texto: desligado</button>
+      <select id="vozLang"><option value="pt-BR">Português (BR)</option><option value="en-US">English (US)</option><option value="es-ES">Español</option></select>
+      <span id="vozSt" class="mut"></span>
+    </div>
+  </div>
+
+  <div class="pane" id="ino">
+    <p class="mut" style="margin:0 0 8px">Cada linha é um pino do ESP32. O firmware abaixo é <b>gerado a partir desta tabela</b>: mudou a tabela, copie e grave de novo na placa. Entradas avisam o HTML com <code>ID-&gt;valor</code>; saídas recebem <code>SET ID valor</code>. Microfone e alto-falante ficam na aba <b>Voz e Som</b>.</p>
+    <div class="row" style="margin-bottom:8px"><button id="bAddFw" class="p">Adicionar pino</button></div>
+    <div style="overflow-x:auto"><table id="tabelaFw"><thead><tr><th>Pino</th><th>Função</th><th>ID</th><th>Parâmetro</th><th>Avisar</th><th>Valor / Teste</th><th></th></tr></thead><tbody id="corpoFw"></tbody></table></div>
+    <div class="row" style="margin:12px 0 8px"><b>Firmware gerado</b><button id="bCopiar">Copiar</button><button id="bBaixarIno">Baixar .ino</button></div>
+    <textarea id="sketch" class="code" spellcheck="false" readonly></textarea>
+  </div>
+  <div class="pane" id="som">
+    <p class="mut" style="margin:0 0 8px"><b>Microfone:</b> o ESP32 lê o microfone (padrão G34) e manda o áudio pelo USB. O software detecta quando você fala e envia <b>só o trecho falado</b> ao <b>Whisper open-source (código do GitHub openai/whisper) rodando no seu PC</b>: sem API, sem chave e sem enviar áudio para a internet. Só precisa de internet na 1ª vez, para baixar o modelo escolhido. Depois use os botões 🎤 da aba Serial.</p>
+    <div class="row" style="margin-bottom:8px">
+      <label>Fonte</label>
+      <select id="somFonte"><option value="esp">Microfone do ESP32 + Whisper local</option><option value="pc">Microfone do PC + Whisper local</option><option value="nav">Reconhecimento do navegador (só Chrome)</option></select>
+      <label>Pino do microfone</label><select id="somMicPino"></select>
+      <label>Taxa (Hz)</label><input id="somTaxa" type="number" min="4000" max="16000" step="1000" style="width:90px">
+    </div>
+    <div class="row" style="margin-bottom:8px">
+      <label>Modelo Whisper</label>
+      <select id="somModelo">
+        <option value="tiny">tiny (~75 MB, mais rápido)</option>
+        <option value="base">base (~140 MB)</option>
+        <option value="small">small (~460 MB)</option>
+        <option value="medium">medium (~1,5 GB)</option>
+        <option value="large-v3-turbo">large-v3-turbo (~1,5 GB, muito bom)</option>
+        <option value="large-v3">large-v3 (~3 GB, melhor, pesado)</option>
+      </select>
+      <button id="bSttTeste">Carregar / testar modelo</button>
+      <span id="somDev" class="mut"></span>
+    </div>
+    <div class="row" style="margin-bottom:14px">
+      <label>Sensibilidade</label><input id="somSens" type="range" min="1" max="100">
+      <label>Nível</label><progress id="micNivel" max="100" value="0" style="width:200px"></progress>
+      <span id="micLimite" class="mut"></span>
+    </div>
+    <p class="mut" style="margin:0 0 8px"><b>Alto-falante do ESP32:</b> ligue por um amplificador (PAM8403, LM386 ou transistor); um alto-falante direto no pino pode forçar o ESP32. Não use este pino também na Tabela do Firmware.</p>
+    <div class="row">
+      <label>Pino</label><select id="somSpkPino"></select>
+      <label>Freq (Hz)</label><input id="somFreq" type="number" value="880" min="50" max="20000" style="width:90px">
+      <label>Duração (ms)</label><input id="somMs" type="number" value="300" min="10" max="5000" style="width:90px">
+      <button id="bTom" class="p">Tocar tom</button><button id="bBip1">Beep</button><button id="bBip2">Confirma</button><button id="bBip3">Erro</button><button id="bTomParar">Parar</button>
+      <label><input type="checkbox" id="somBipe"> Beep ao reconhecer uma fala</label>
+    </div>
+    <p class="mut" style="margin:10px 0 0">Mudou algum pino? Vá em <b>Tabela do Firmware</b>, copie o firmware gerado e grave de novo (baud 460800).</p>
+  </div>
+  <div class="pane" id="ia">
+    <p class="mut" style="margin:0 0 8px">A IA usa o <b>OpenCode</b> (open source, <code>opencode.ai</code>), que o app inicia sozinho em segundo plano, só neste PC e <b>sem ferramentas de código</b> (ela só conversa: não lê arquivos nem roda comandos). Instale com <code>INSTALAR-OPENCODE.bat</code> e escolha um provedor/modelo com <code>opencode auth login</code>. Escreva a pergunta na aba <b>Serial</b> e clique em <b>🤖 Perguntar à IA</b>. Ela escreve todas as respostas no log, mas só fala em voz alta com o botão <b>🔊 Ler-texto</b> ligado.</p>
+    <div class="row" style="margin-bottom:8px">
+      <label>Modelo</label>
+      <input id="iaModelo" list="iaLista" style="width:340px" placeholder="provedor/modelo (vazio = padrão do OpenCode)"><datalist id="iaLista"></datalist>
+      <button id="bIaTeste">Testar conexão / listar modelos</button><button id="bIaLimpar">Limpar memória da conversa</button>
+    </div>
+    <div class="row" style="margin-bottom:8px">
+      <label><input type="checkbox" id="iaEnviaESP" checked> Mandar a resposta da IA ao ESP (Serial)</label>
+      <label>Linhas do Serial que a IA enxerga <input type="number" id="iaLinhas" value="150" min="0" max="300" style="width:70px"></label>
+      <span id="iaSt" class="mut"></span>
+    </div>
+  </div>
+  <div class="pane" id="instr">
+    <p class="mut" style="margin:0 0 8px">Este texto é enviado à IA em toda pergunta, junto com a tabela do firmware. Edite à vontade. Fica salvo no navegador e dentro do <b>Salvar projeto</b>.</p>
+    <div class="row" style="margin-bottom:8px"><button id="bIaPadrao">Restaurar texto padrão</button></div>
+    <textarea id="iaInstr" spellcheck="false" style="width:100%;height:340px;box-sizing:border-box"></textarea>
+  </div>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const esc=t=>String(t??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+const DP=[2,4,5,12,13,14,15,16,17,18,19,21,22,23,25,26,27,32,33],AP=[32,33,34,35,36,39];
+const ROWS=DP.map(p=>'G'+p).concat(AP.map(p=>'A'+p));
+const hist={},ult={},pinos={};
+let linhas=[],H={},maskAnt=null,off=null,pausado=false;
+let regrasSerial = {};
+let simTimer=null,simT0=0,ultimoDadoOnda=0;
+let cardsVisiveis = new Set();
+let oledVisiveis = new Set();
+let oledTimer = null;
+
+function normalizarRegra(r){
+  return {gatilho:r.gatilho,nome:r.nome||'',unidade:r.unidade||'',modo:r.modo||'contagem',valor:r.valor??0,parametroDe:r.parametroDe||'',ordemParametro:r.ordemParametro??0};
+}
+function salvarRegrasLocalStorage(){
+  try{
+    const obj={};for(const k in regrasSerial)obj[k]=normalizarRegra(regrasSerial[k]);
+    localStorage.setItem('ondas-regras-v2',JSON.stringify(obj));
+  }catch(_){}
+}
+function carregarRegrasLocalStorage(){
+  try{
+    const salvo=localStorage.getItem('ondas-regras-v2');
+    if(salvo){const obj=JSON.parse(salvo);for(const k in obj)regrasSerial[k]=normalizarRegra(obj[k]);}
+  }catch(_){}
+}
+
+function valorParaOLED(reg){
+  let valStr = reg.valor !== undefined && reg.valor !== '' ? String(reg.valor) : '0';
+  if(reg.modo === 'toggle') valStr = reg.valor === 1 ? 'Ativo' : 'Inativo';
+  return valStr + (reg.unidade && reg.valor !== undefined && reg.valor !== '' ? ' ' + reg.unidade : '');
+}
+
+function atualizarOLED(){
+  if(oledTimer) clearTimeout(oledTimer);
+  oledTimer = setTimeout(() => {
+    const linhas = [...oledVisiveis].map(k => {
+      const r = regrasSerial[k];
+      if(!r) return '';
+      return (r.nome || k).replace(/[~;]/g,' ').slice(0,13) + ': ' + valorParaOLED(r);
+    }).filter(Boolean).slice(0,4);
+    tx('OLED:' + linhas.join('~'));
+  }, 120);
+}
+
+window.alternarOLED = function(chave){
+  if(oledVisiveis.has(chave)) oledVisiveis.delete(chave);
+  else oledVisiveis.add(chave);
+  renderizarTabelaRegras();
+  atualizarOLED();
+};
+
+function renderizarTabelaRegras(){
+  const corpo = $('corpoTabelaRegras');
+  corpo.innerHTML = '';
+  
+  const chaves = Object.keys(regrasSerial).sort((a,b)=>{
+    const A=regrasSerial[a], B=regrasSerial[b];
+    if(A.parametroDe && A.parametroDe===b) return 1;
+    if(B.parametroDe && B.parametroDe===a) return -1;
+    if(A.parametroDe && B.parametroDe && A.parametroDe===B.parametroDe) return (A.ordemParametro||0)-(B.ordemParametro||0);
+    return 0;
+  });
+
+  if(chaves.length === 0){
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td colspan="6" style="text-align:center;color:var(--mut);">Nenhum gatilho cadastrado. Adicione acima.</td>`;
+    corpo.appendChild(tr);
+    renderizarCardsDisplay();
+    return;
+  }
+
+  chaves.forEach(chave => {
+    const reg = regrasSerial[chave];
+    const tr = document.createElement('tr');
+    if(reg.parametroDe) tr.style.background = 'rgba(88,166,255,0.06)';
+    
+    let textoModo = 'Contagem Acumulativa';
+    if(reg.modo === 'toggle') textoModo = 'Alternar (0/1)';
+    else if(reg.modo === 'valor') textoModo = 'Último Valor Decimal';
+    else if(reg.modo === 'sensor') textoModo = 'Sensor (valor exato)';
+
+    let valorDisplay = reg.valor ?? 0;
+    if(reg.modo === 'toggle') valorDisplay = reg.valor === 1 ? '1 (Ativo)' : '0 (Inativo)';
+    if(reg.unidade && valorDisplay !== '—' && valorDisplay !== '') valorDisplay += ' ' + reg.unidade;
+
+    const ativoDisplay = cardsVisiveis.has(chave) ? 'active' : '';
+
+    tr.innerHTML = `
+      <td><code>${esc(reg.parametroDe ? '↳ ' + chave.split('__').slice(1).join('__') : chave)}</code></td>
+      <td><code>${esc(reg.gatilho)}</code></td>
+      <td><input class="editable-name" type="text" value="${esc(reg.nome)}" data-key="${esc(chave)}"></td>
+      <td><span class="mut">${textoModo}</span></td>
+      <td data-valreg="${esc(chave)}" style="font-weight:600; color:var(--ok);">${esc(valorDisplay)}</td>
+      <td>
+        <button class="btn-eye ${oledVisiveis.has(chave) ? 'active' : ''}" data-k="${esc(chave)}" onclick="alternarOLED(this.dataset.k)" title="Mostrar/ocultar no OLED físico">👁️ OLED</button>
+        <button class="btn-eye ${ativoDisplay}" data-k="${esc(chave)}" onclick="alternarCardDisplay(this.dataset.k)" title="Mostrar em Card em Destaque">👁️</button>
+        <button data-k="${esc(chave)}" onclick="removerRegra(this.dataset.k)" style="background:#21262d;color:var(--err);border-color:var(--err);padding:2px 8px;font-size:0.8rem">Excluir</button>
+      </td>
+    `;
+    corpo.appendChild(tr);
+  });
+
+  corpo.querySelectorAll('.editable-name').forEach(input => {
+    input.oninput = (e) => {
+      const key = e.target.dataset.key;
+      if(regrasSerial[key]) {
+        regrasSerial[key].nome = e.target.value;
+        salvarRegrasLocalStorage();
+        atualizarCardDisplay(key);
+      }
+    };
+  });
+
+  renderizarCardsDisplay();
+}
+
+window.alternarCardDisplay = function(chave){
+  if(cardsVisiveis.has(chave)) cardsVisiveis.delete(chave);
+  else cardsVisiveis.add(chave);
+  renderizarTabelaRegras();
+};
+
+function renderizarCardsDisplay(){
+  const container = $('cardsDisplayContainer');
+  container.innerHTML = '';
+
+  cardsVisiveis.forEach(chave => {
+    const reg = regrasSerial[chave];
+    if(!reg) { cardsVisiveis.delete(chave); return; }
+
+    const card = document.createElement('div');
+    card.className = 'display-card';
+    card.dataset.k = chave;
+
+    let valorFormatado = reg.valor ?? 0;
+    if(reg.modo === 'toggle') valorFormatado = reg.valor === 1 ? '1' : '0';
+    if(reg.unidade && valorFormatado !== '—' && valorFormatado !== '') valorFormatado += ' ' + reg.unidade;
+
+    card.innerHTML = `
+      <button class="card-close" data-k="${esc(chave)}" onclick="alternarCardDisplay(this.dataset.k)" title="Fechar">✕</button>
+      <div class="card-title">${esc(reg.nome || chave)}</div>
+      <div class="card-value">${esc(valorFormatado)}</div>
+    `;
+    container.appendChild(card);
+  });
+}
+
+function atualizarCardDisplay(chave){
+  if(!cardsVisiveis.has(chave)) return;
+  const reg = regrasSerial[chave];
+  if(!reg) return;
+
+  const card = [...document.querySelectorAll('.display-card')].find(c => c.dataset.k === chave);
+  const elTitle = card && card.querySelector('.card-title');
+  const elVal = card && card.querySelector('.card-value');
+
+  if(elTitle) elTitle.textContent = reg.nome || chave;
+  if(elVal){
+    let valorFormatado = reg.valor ?? 0;
+    if(reg.modo === 'toggle') valorFormatado = reg.valor === 1 ? '1' : '0';
+    if(reg.unidade && valorFormatado !== '—' && valorFormatado !== '') valorFormatado += ' ' + reg.unidade;
+    elVal.textContent = valorFormatado;
+  }
+}
+
+function adicionarRegraSerial(chave, gatilho, nome, modo, unidade=''){
+  chave = String(chave).trim();
+  gatilho = String(gatilho).trim();
+  if(!chave || !gatilho) return;
+  regrasSerial[chave] = {
+    gatilho: gatilho,
+    nome: nome || ('Gatilho ' + chave),
+    unidade: String(unidade || '').trim(),
+    modo: modo || 'contagem',
+    valor: 0
+  };
+  salvarRegrasLocalStorage();
+  renderizarTabelaRegras();
+}
+
+window.removerRegra = function(chave){
+  delete regrasSerial[chave];
+  cardsVisiveis.delete(chave);
+  oledVisiveis.delete(chave);
+  salvarRegrasLocalStorage();
+  atualizarOLED();
+  renderizarTabelaRegras();
+};
+
+$('bAddRegra').onclick = () => {
+  const chave = $('novaChave').value.trim();
+  const gatilho = $('novoGatilho').value.trim();
+  const nome = $('novoNome').value.trim();
+  const modo = $('novoModo').value;
+  const unidade = $('novoUnidade').value.trim();
+  if(!chave||regrasSerial[chave])return;
+  adicionarRegraSerial(chave, gatilho || chave, nome || ('Chave ' + chave), modo, unidade);
+  $('novaChave').value = '';
+  $('novoNome').value = '';$('novoUnidade').value = '';
+};
+
+function slugParametro(nome){
+  return String(nome).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'') || 'param';
+}
+
+function atualizarParametrosDoPacote(chavePai, payload){
+  const partes = payload.split('|').map(x=>x.trim()).filter(Boolean);
+  const encontrados = [];
+  for(const parte of partes){
+    const m = parte.match(/^([^:=]+)\s*[:=]\s*(.+)$/);
+    if(!m) continue;
+    encontrados.push({nome:m[1].trim(), valor:m[2].trim()});
+  }
+  if(!encontrados.length) return false;
+  let mudouEstrutura = false;
+  encontrados.forEach((par, i)=>{
+    const k = chavePai + '__' + slugParametro(par.nome);
+    if(!regrasSerial[k]){
+      regrasSerial[k] = {gatilho: regrasSerial[chavePai].gatilho, nome: par.nome, unidade: '', modo:'sensor', valor:par.valor, parametroDe:chavePai, ordemParametro:i};
+      mudouEstrutura = true;
+    } else {
+      regrasSerial[k].nome = par.nome;
+      regrasSerial[k].valor = par.valor;
+      regrasSerial[k].ordemParametro = i;
+    }
+    atualizarExibicaoValorRegra(k);
+  });
+  if(mudouEstrutura){ salvarRegrasLocalStorage(); renderizarTabelaRegras(); }
+  return true;
+}
+
+function verificarGatilhosSerial(texto){
+  if(texto.startsWith('R->')){
+    const idReset = texto.substring(3).trim();
+    if(regrasSerial[idReset]){
+      regrasSerial[idReset].valor = 0;
+      salvarRegrasLocalStorage();
+      atualizarExibicaoValorRegra(idReset);
+      addLinha('Reset efetuado para o ID: ' + idReset, 'ts');
+    }
+    return;
+  }
+
+  for(const chave in regrasSerial){
+    const reg = regrasSerial[chave];
+    if(reg.parametroDe) continue;
+    if(!reg.gatilho) continue;
+    
+    const idx = texto.indexOf(reg.gatilho);
+    if(idx === -1) continue;
+
+    if(reg.modo === 'sensor'){
+      const payload = texto.substring(idx + reg.gatilho.length).replace(/^\s*[:=,;]\s*/, '').trim();
+      if(payload){
+        const pacoteSeparado = atualizarParametrosDoPacote(chave, payload);
+        reg.valor = payload;
+        if(pacoteSeparado) reg.unidade = '';
+      }
+    } else if(reg.modo === 'toggle'){
+      reg.valor = reg.valor === 1 ? 0 : 1;
+    } else if(reg.modo === 'valor'){
+      const resto = texto.substring(idx + reg.gatilho.length);
+      const matchDecimal = resto.match(/-?\d+(?:[.,]\d+)?/);
+      if(matchDecimal) reg.valor = matchDecimal[0].replace(',', '.');
+    } else if(reg.modo === 'contagem'){
+      const resto = texto.substring(idx + reg.gatilho.length);
+      const matchSoma = resto.match(/^[\s\->:=]+(-?\d+(?:[.,]\d+)?)/);
+      if(matchSoma){
+        const incremento = parseFloat(matchSoma[1].replace(',', '.'));
+        reg.valor = (parseFloat(reg.valor) || 0) + incremento;
+      } else {
+        reg.valor = (parseFloat(reg.valor) || 0) + 1;
+      }
+    }
+    salvarRegrasLocalStorage();
+    atualizarExibicaoValorRegra(chave);
+  }
+}
+
+function atualizarExibicaoValorRegra(chave){
+  const reg = regrasSerial[chave];
+  if(!reg) return;
+  const elVal = [...document.querySelectorAll('[data-valreg]')].find(e => e.dataset.valreg === chave);
+
+  let valorDisplay = reg.valor ?? 0;
+  if(reg.modo === 'toggle'){
+    valorDisplay = reg.valor === 1 ? '1 (Ativo)' : '0 (Inativo)';
+  } else if(reg.unidade && valorDisplay !== '—' && valorDisplay !== ''){
+    valorDisplay += ' ' + reg.unidade;
+  }
+
+  if(elVal) elVal.textContent = valorDisplay;
+
+  atualizarCardDisplay(chave);
+  if(oledVisiveis.has(chave)) atualizarOLED();
+}
+
+/* ---------- CONEXÃO (USB, Wi-Fi, Bluetooth) ---------- */
+const NUS='6e400001-b5a3-f393-e0a9-e50e24dcca9e',NUS_RX='6e400002-b5a3-f393-e0a9-e50e24dcca9e',NUS_TX='6e400003-b5a3-f393-e0a9-e50e24dcca9e';
+const codif=new TextEncoder();
+let bleFila=Promise.resolve(),via=null,porta,leitor,escritor,lendo=false,ws,bleDev,bleRx,buf='';
+
+function tx(l){
+  if(via=='usb'&&escritor)escritor.write(l+'\n').catch(()=>{});
+  else if(via=='wifi'&&ws&&ws.readyState==1)ws.send(l);
+  else if(via=='ble'&&bleRx){const b=codif.encode(l+'\n');bleFila=bleFila.then(async()=>{for(let i=0;i<b.length;i+=20)await bleRx.writeValue(b.slice(i,i+20));}).catch(()=>{});}
+}
+
+function status(on,t){$('dot').classList.toggle('on',on);$('st').textContent=t;$('bCon').disabled=on;$('bDes').disabled=!on;}
+
+function addLinha(t,c){
+  const h=new Date().toLocaleTimeString('pt-BR');linhas.push(`[${h}] ${t}`);
+  const d=document.createElement('div'),a=document.createElement('span'),b=document.createElement('span');
+  a.className='ts';a.textContent=h+'  ';if(c)b.className=c;b.textContent=t;d.append(a,b);$('log').appendChild(d);
+  while($('log').childNodes.length>1000)$('log').removeChild($('log').firstChild);
+  if($('auto').checked)$('log').scrollTop=$('log').scrollHeight;
+  return d;
+}
+
+function entrada(txt){
+  buf+=txt;const partes=buf.split(/\r?\n/);buf=partes.pop();
+  partes.forEach(l=>{l=l.trim();if(l)processa(l);});
+}
+
+function pronto(t){if(simTimer)simular();limparOndas();ultimoDadoOnda=0;off=null;maskAnt=null;buf='';iniciarPoll();status(true,'Conectado: '+t);addLinha('— conectado ('+t+') —','ts');}
+function fechou(){pararPoll();if(!via)return;via=null;micDesligaSePreciso();status(false,'Desconectado');addLinha('— conexão encerrada —','ts');}
+
+async function conectar(){
+  const v=$('via').value;
+  try{
+    if(v=='usb'){
+      porta=await navigator.serial.requestPort();
+      await porta.open({baudRate:+$('baud').value});
+      const e=new TextEncoderStream();e.readable.pipeTo(porta.writable);escritor=e.writable.getWriter();
+      via='usb';pronto('USB '+$('baud').value+' baud');lerLoop();
+    }else if(v=='wifi'){
+      const ip=$('ip').value.trim();
+      await new Promise((ok,no)=>{ws=new WebSocket('ws://'+ip+':81');ws.onopen=ok;ws.onerror=no;});
+      ws.onmessage=e=>entrada(e.data+'\n');ws.onclose=fechou;
+      via='wifi';pronto('Wi-Fi '+ip);
+    }else{
+      bleDev=await navigator.bluetooth.requestDevice({filters:[{services:[NUS]}]});
+      const srv=await bleDev.gatt.connect(),svc=await srv.getPrimaryService(NUS);
+      bleRx=await svc.getCharacteristic(NUS_RX);
+      const c=await svc.getCharacteristic(NUS_TX),dec=new TextDecoder();
+      await c.startNotifications();
+      c.addEventListener('characteristicvaluechanged',e=>entrada(dec.decode(e.target.value)));
+      bleDev.addEventListener('gattserverdisconnected',fechou);
+      via='ble';pronto('Bluetooth '+(bleDev.name||''));
+    }
+  }catch(e){addLinha('Erro ao conectar: '+((e&&e.message)||e),'ts');}
+}
+
+async function lerLoop(){
+  lendo=true;
+  const dec=new TextDecoderStream(),fechado=porta.readable.pipeTo(dec.writable).catch(()=>{});
+  leitor=dec.readable.getReader();
+  try{while(lendo){const{value,done}=await leitor.read();if(done)break;entrada(value);}}
+  catch(_){}
+  finally{try{leitor.releaseLock()}catch(_){}await fechado;if(via=='usb'){try{await porta.close()}catch(_){}escritor=null;fechou();}}   // cabo USB desconectado
+}
+
+async function desconectar(){
+  const v=via;lendo=false;
+  if(v=='usb'){try{await leitor?.cancel()}catch(_){}try{await escritor?.close()}catch(_){}try{await porta?.close()}catch(_){}escritor=null;}
+  else if(v=='wifi'){try{ws.close()}catch(_){}}
+  else if(v=='ble'){try{bleDev.gatt.disconnect()}catch(_){}}
+  fechou();
+}
+
+async function processa(l){
+  const au=l.match(/^A ([A-Za-z0-9+\/]{16,})$/);   // áudio do microfone do ESP32
+  if(au){micAudioLinha(au[1]);return;}
+  const a=l.match(/^P\s+([0-9A-Fa-f]+)((?:\s+\d+)+)$/);
+  if(a){pendente=0;amostrar(parseInt(a[1],16),a[2].trim().split(/\s+/).map(Number));return;}
+
+  // Só as mensagens do OLED (ligar/desligar/atualizar) são ignoradas; todo o resto do Serial, inclusive ecos, segue o fluxo normal (gatilhos, log, aoReceber).
+  if(/OLED:/i.test(l))return;
+  fwReceber(l);
+  const eco=/^IA->/.test(l);   // eco da resposta da IA voltando do ESP: não lê nem conta de novo
+  if(!eco){lerTag(l);verificarGatilhosSerial(l);}
+
+  addLinha('Arduino: '+l);
+  if(H.aoReceber)try{const r=await H.aoReceber(l);if(r!=null&&String(r)!==l)addLinha('→ '+r,'dec');}catch(_){}
+}
+
+async function enviar(){
+  const t=$('envio').value;if(!t)return;let out=t;
+  try{if(H.aoEnviar)out=await H.aoEnviar(t);}catch(e){addLinha('Erro em aoEnviar: '+e.message,'ts');return;}
+
+  verificarGatilhosSerial(t);
+  lerTag(t);
+
+  if(out!=null&&out!==''){tx(String(out));addLinha('> '+t+(String(out)!==t?'  →  '+out:''),'tx');}
+  $('envio').value='';
+}
+
+/* ---------- ONDAS ---------- */
+function rec(k,t,n){
+  ult[k]=n;const h=hist[k]||(hist[k]=[]),l=h[h.length-1];
+  if(!l||l[1]!==n)h.push([t,n]);
+  if(h.length>4000)h.splice(0,800);
+}
+// Uma amostra = leitura de TODOS os pinos no mesmo instante (hora do navegador)
+function amostrar(mask,an){
+  const t=performance.now();ultimoDadoOnda=t;
+  for(let i=0;i<DP.length;i++){
+    const k='G'+DP[i],v=(mask>>i)&1,mudou=maskAnt!==null&&((maskAnt>>i)&1)!==v;
+    rec(k,t,v);pinos[k]=v;
+    if(mudou&&H.aoMudarPino)try{H.aoMudarPino(k,v,Math.round(t))}catch(_){}
+  }
+  maskAnt=mask;
+  an.forEach((v,i)=>{if(i>=AP.length)return;const k='A'+AP[i];pinos[k]=v;rec(k,t,Math.min(1,Math.max(0,v/4095)));});
+}
+
+// Leitura periódica: pede os pinos ao ESP32 a cada 50 ms
+const PERIODO=50;let pollTimer=null,pendente=0;
+function iniciarPoll(){
+  pararPoll();pendente=0;
+  pollTimer=setInterval(()=>{
+    if(!via)return;
+    if(pendente&&performance.now()-pendente<500)return; // ainda esperando a resposta anterior
+    pendente=performance.now();tx('READ');
+  },PERIODO);
+}
+function pararPoll(){if(pollTimer){clearInterval(pollTimer);pollTimer=null;}pendente=0;}
+
+function desenhar(){
+  if(pausado)return;
+  const c=$('wave'),W=c.clientWidth,RH=26,HT=ROWS.length*RH,d=devicePixelRatio||1;
+  c.style.height=HT+'px';c.width=W*d;c.height=HT*d;
+  const g=c.getContext('2d');g.scale(d,d);g.font='12px sans-serif';
+  const now=performance.now(),win=$('jan').value*1000,L=84,wd=W-L-8,X=t=>L+(1-(now-t)/win)*wd;
+  // grade vertical a cada segundo (ou 5 s em janelas longas)
+  const passo=win>30000?5000:1000;g.strokeStyle='#161c23';g.lineWidth=1;g.beginPath();
+  for(let s=0;s<=win;s+=passo){const x=Math.round(L+wd-(s/win)*wd)+.5;g.moveTo(x,0);g.lineTo(x,HT);}
+  g.stroke();
+  ROWS.forEach((k,i)=>{
+    const y0=i*RH+5,h=RH-13,hs=hist[k]||[],Y=n=>y0+h-n*h;
+    if(!hs.length){g.strokeStyle='#2a323b';g.setLineDash([4,4]);g.beginPath();g.moveTo(L,y0+h/2);g.lineTo(L+wd,y0+h/2);g.stroke();g.setLineDash([]);}
+    g.fillStyle='#8b98a5';g.fillText(k+'  '+(pinos[k]??'—'),8,y0+h/2+4);
+    g.strokeStyle='#21262d';g.lineWidth=1;g.beginPath();g.moveTo(L,y0+h+4);g.lineTo(W-8,y0+h+4);g.stroke();
+    let st=0;for(let j=0;j<hs.length;j++)if(X(hs[j][0])<L)st=j;
+    g.strokeStyle=k[0]=='G'?'#3fb950':'#d29922';g.lineWidth=2;g.beginPath();
+    let py=null;
+    for(let j=st;j<hs.length;j++){const x=Math.max(L,X(hs[j][0])),y=Y(hs[j][1]);if(py===null)g.moveTo(x,y);else{if(k[0]=='G')g.lineTo(x,py);g.lineTo(x,y);}py=y;}
+    if(py!==null)g.lineTo(L+wd,py);
+    g.stroke();
+  });
+}
+
+function limparOndas(){for(const k in hist)delete hist[k];for(const k in ult)delete ult[k];for(const k in pinos)delete pinos[k];off=null;maskAnt=null;}
+
+// Gera ondas de teste (quadradas nos GPIOs, senoides nos ADCs) sem precisar do ESP32
+function simular(){
+  const b=$('bSim');
+  if(simTimer){clearInterval(simTimer);simTimer=null;b.textContent='Simular ondas';b.classList.remove('p');return;}
+  if(via)return;
+  limparOndas();ultimoDadoOnda=0;simT0=performance.now();
+  b.textContent='Parar simulação';b.classList.add('p');
+  simTimer=setInterval(()=>{
+    const ms=Math.round(performance.now()-simT0);let m=0;
+    DP.forEach((p,i)=>{if(Math.floor(ms/(300+i*130))%2)m|=1<<i;});
+    amostrar(m,AP.map((p,i)=>Math.round(2048+1900*Math.sin(ms/1000*(0.7+i*0.4)+i))));
+  },PERIODO);
+}
+setInterval(desenhar,50);
+
+const api={enviar:tx,log:t=>addLinha(String(t),'tx'),pinos,tom:(f,ms)=>espTom(f,ms)};
+function aplicar(){
+  try{
+    H=new Function('api',`with(api){${$('codigo').value}
+;return{aoEnviar:typeof aoEnviar=='function'?aoEnviar:null,aoReceber:typeof aoReceber=='function'?aoReceber:null,aoMudarPino:typeof aoMudarPino=='function'?aoMudarPino:null}}`)(api);
+  }catch(e){H={};addLinha('Erro no código do HTML: '+e.message,'ts');}
+}
+let salvo=null;try{salvo=localStorage.getItem('ondas-codigo-v2')}catch(_){}
+$('codigo').value=salvo||'';
+$('codigo').addEventListener('input',()=>{try{localStorage.setItem('ondas-codigo-v2',$('codigo').value)}catch(_){}});$('codigo').addEventListener('keydown',e=>{
+  if(e.key=='Tab'){e.preventDefault();const t=e.target;t.setRangeText('  ',t.selectionStart,t.selectionEnd,'end');t.dispatchEvent(new Event('input'));}
+});
+
+document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('.tabs button,.pane').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on');$(b.dataset.t).classList.add('on');
+});
+const baixar=(n,t)=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([t],{type:'text/plain'}));a.download=n;a.click();};
+$('bCon').onclick=conectar;$('bDes').onclick=desconectar;$('bAp').onclick=aplicar;
+$('bEnv').onclick=enviar;$('envio').addEventListener('keydown',e=>{if(e.key=='Enter')enviar();});
+$('bCopiar').onclick=()=>navigator.clipboard.writeText($('sketch').value);
+$('bPausa').onclick=()=>{pausado=!pausado;$('bPausa').textContent=pausado?'Continuar':'Pausar';};
+$('bZ').onclick=()=>{const n=performance.now();for(const k in hist)hist[k]=ult[k]===undefined?[]:[[n,ult[k]]];};$('bSim').onclick=simular;$('bLimpar').onclick=()=>{$('log').innerHTML='';linhas=[];};$('bLog').onclick=()=>baixar('log-serial.txt',linhas.filter(Boolean).join('\n'));
+$('via').onchange=()=>{const v=$('via').value;$('fUsb').style.display=v=='usb'?'':'none';$('fWifi').style.display=v=='wifi'?'':'none';};
+
+/* ---------- PROJETO (salvar / abrir .json) ---------- */
+function msgProj(t){$('projSt').textContent=t;}
+function montarProjeto(){
+  const regras={};for(const k in regrasSerial)regras[k]=normalizarRegra(regrasSerial[k]);
+  return JSON.stringify({app:'ondas-esp32',versao:1,regras,cards:[...cardsVisiveis],oled:[...oledVisiveis],codigo:$('codigo').value,firmware:fw.map(({valor,...r})=>r),instrucoes:$('iaInstr').value,som},null,2);
+}
+async function salvarProjeto(){
+  const texto=montarProjeto(),nome='projeto-ondas-esp32.json';
+  try{
+    if(window.showSaveFilePicker){
+      const h=await showSaveFilePicker({suggestedName:nome,types:[{description:'Projeto Ondas ESP32',accept:{'application/json':['.json']}}]});
+      const w=await h.createWritable();await w.write(texto);await w.close();msgProj('Salvo: '+h.name);return;
+    }
+    baixar(nome,texto);msgProj('Arquivo baixado: '+nome);
+  }catch(_){}
+}
+function aplicarProjeto(texto,nome){
+  let p;try{p=JSON.parse(texto);}catch(_){return;}
+  if(!p||p.app!=='ondas-esp32'||!p.regras||typeof p.regras!=='object')return;
+  regrasSerial={};
+  for(const k in p.regras){const r=p.regras[k];if(r&&r.gatilho)regrasSerial[k]=normalizarRegra(r);}
+  cardsVisiveis=new Set((p.cards||[]).filter(k=>regrasSerial[k]));
+  oledVisiveis=new Set((p.oled||[]).filter(k=>regrasSerial[k]));
+  if(Array.isArray(p.firmware)){fw=p.firmware.map(fwNorm);fwMudou(true);}
+  if(typeof p.instrucoes==='string'){$('iaInstr').value=p.instrucoes;iaInstrSalvar();}
+  if(p.som&&typeof p.som=='object'){Object.assign(som,p.som);somLimpa();somSalvar();somUI();gerarFw();}
+  $('codigo').value=typeof p.codigo==='string'?p.codigo:'';
+  try{localStorage.setItem('ondas-codigo-v2',$('codigo').value)}catch(_){}
+  salvarRegrasLocalStorage();renderizarTabelaRegras();aplicar();
+  if(via&&oledVisiveis.size)atualizarOLED();
+  msgProj('Projeto carregado'+(nome?': '+nome:'')+'.');
+}
+async function abrirProjeto(){
+  try{
+    $('arqProj').click();
+  }catch(_){}
+}
+$('bSalvarProj').onclick=salvarProjeto;$('bAbrirProj').onclick=abrirProjeto;
+$('arqProj').onchange=async e=>{const f=e.target.files[0];if(f)aplicarProjeto(await f.text(),f.name);e.target.value='';};
+
+/* ---------- CONFIGURAÇÃO DE VOZ E SOM (usada também pelo firmware gerado) ---------- */
+const MODELOS_WHISPER=['tiny','base','small','medium','large-v3-turbo','large-v3'];
+const som={micPino:34,spkPino:26,taxa:8000,modelo:'base',sens:50,fonte:'esp',bipe:true};
+try{Object.assign(som,JSON.parse(localStorage.getItem('ondas-som-v1')||'{}'));}catch(_){}
+function somLimpa(){   // descarta restos de versões antigas (API na nuvem, celular)
+  for(const k of ['serv','url','chave'])delete som[k];
+  if(!MODELOS_WHISPER.includes(som.modelo))som.modelo='base';
+  if(!['esp','pc','nav'].includes(som.fonte))som.fonte='esp';
+}
+somLimpa();
+function somSalvar(){try{localStorage.setItem('ondas-som-v1',JSON.stringify(som))}catch(_){}}
+
+/* ---------- TABELA DO FIRMWARE ---------- */
+const FWP=[2,4,5,12,13,14,15,16,17,18,19,21,22,23,25,26,27,32,33,34,35,36,39];
+const FWM=['Entrada digital (pull-up)','Entrada digital (pull-down)','Entrada digital (sem pull)','Entrada analógica (0–4095)','Saída digital (0/1)','Saída PWM (0–255)'];
+const FWPAR=['debounce (ms)','debounce (ms)','debounce (ms)','variação mínima','nível inicial (0/1)','valor inicial (0–255)'];
+const FWDEF=[50,50,50,100,0,0];
+const fwModos=p=>[0,1,2,3,4,5].filter(m=>p>=34?(m==2||m==3):(m!=3||AP.includes(p)));
+const fwId=s=>{s=String(s||'').toUpperCase().replace(/[^A-Z0-9_]/g,'').slice(0,12);return s==='R'?'R_':s;};
+const fwNorm=r=>{const p=FWP.includes(+r.pino)?+r.pino:2;let m=+r.modo;if(!fwModos(p).includes(m))m=fwModos(p)[0];
+  return{pino:p,modo:m,id:fwId(r.id)||('P'+p),par:Number.isFinite(+r.par)?+r.par:FWDEF[m],avisa:r.avisa!==false,valor:'—'};};
+let fw=[];
+try{const s=localStorage.getItem('ondas-fw-v2');fw=(s?JSON.parse(s):[]).map(fwNorm);}catch(_){fw=[];}
+
+function gerarFw(){
+  const it=fw.filter(r=>r.id);
+  const lin=it.length?it.map(r=>`  {"${r.id}", ${r.pino}, ${r.modo}, ${r.modo==3?Math.max(1,r.par):r.par}, ${r.avisa&&r.modo<4?1:0}, 0, 0, 0}`).join(',\n'):'  {"", 0, 0, 0, 0, 0, 0, 0}';
+  $('sketch').value=`// Firmware gerado pela "Tabela do Firmware" do HTML (não edite aqui: edite a tabela).
+// Grave pela Arduino IDE (placa ESP32 Dev Module) e conecte por USB a 460800.
+//
+// O ESP32 aceita estas linhas (terminadas em \\n):
+//   READ             -> responde "P <mascara> a0..a5" (usado pelas ondas)
+//   SET ID valor     -> aciona uma saída (digital: 0 ou 1 | PWM: 0 a 255)
+//   TOGGLE ID        -> inverte uma saída digital
+//   GET ID / GET ALL -> responde o valor atual
+//   MIC taxa         -> liga o microfone (pino ${som.micPino}) e manda o áudio em linhas "A <base64>" (ex.: MIC 8000); MIC 0 desliga
+//   TONE freq ms     -> toca um tom no alto-falante (pino ${som.spkPino}); TONE 0 para
+// O ESP32 avisa sozinho, no formato  ID->valor, quando uma entrada muda
+// (e também confirma cada SET/TOGGLE com  ID->valor).
+
+struct Item { const char* id; int pino; int modo; int par; int avisa; int ultimo; int bruto; unsigned long t; };
+// modo: 0 entrada pull-up | 1 entrada pull-down | 2 entrada sem pull | 3 analógica | 4 saída | 5 PWM
+// par : debounce (ms) | variação mínima (analógica) | valor inicial (saídas)
+Item T[] = {
+${lin}
+};
+const int N = ${it.length};
+
+const int DP[] = {2,4,5,12,13,14,15,16,17,18,19,21,22,23,25,26,27,32,33};
+const int AP[] = {32,33,34,35,36,39};
+const int ND = sizeof(DP) / sizeof(DP[0]);
+String linha = "";
+
+const int MIC_PIN = ${som.micPino};
+const int SPK_PIN = ${som.spkPino};
+bool micOn = false, spkOk = false;
+unsigned long micDt = 125, micProx = 0, tomFim = 0;
+uint8_t micBuf[96];
+int micN = 0;
+const char B64[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+void enviarAudio() {
+  char out[132];
+  int k = 0;
+  out[k++] = 'A';
+  out[k++] = ' ';
+  for (int i = 0; i < 96; i += 3) {
+    uint32_t v = ((uint32_t)micBuf[i] << 16) | ((uint32_t)micBuf[i + 1] << 8) | micBuf[i + 2];
+    out[k++] = B64[(v >> 18) & 63];
+    out[k++] = B64[(v >> 12) & 63];
+    out[k++] = B64[(v >> 6) & 63];
+    out[k++] = B64[v & 63];
+  }
+  out[k++] = '\\n';
+  Serial.write((const uint8_t*)out, k);
+}
+
+void micLoop() {
+  if (!micOn) return;
+  for (int n = 0; n < 3; n++) {
+    unsigned long agora = micros();
+    if ((long)(agora - micProx) < 0) return;
+    micProx += micDt;
+    if ((long)(agora - micProx) > (long)(4 * micDt)) micProx = agora + micDt;
+    micBuf[micN++] = analogRead(MIC_PIN) >> 4;
+    if (micN >= 96) { enviarAudio(); micN = 0; }
+  }
+}
+
+void tom(int f, int ms) {
+  if (!spkOk) {
+#if ESP_ARDUINO_VERSION_MAJOR >= 3
+    ledcAttach(SPK_PIN, 2000, 8);
+#else
+    ledcSetup(15, 2000, 8);
+    ledcAttachPin(SPK_PIN, 15);
+#endif
+    spkOk = true;
+  }
+  if (f < 0) f = 0;
+#if ESP_ARDUINO_VERSION_MAJOR >= 3
+  ledcWriteTone(SPK_PIN, f);
+#else
+  ledcWriteTone(15, f);
+#endif
+  tomFim = (f > 0 && ms > 0) ? millis() + ms : 0;
+}
+
+int achar(String id) { for (int i = 0; i < N; i++) if (id == T[i].id) return i; return -1; }
+bool naTabela(int p) { for (int i = 0; i < N; i++) if (T[i].pino == p) return true; return false; }
+bool ehSaida(int p) { for (int i = 0; i < N; i++) if (T[i].pino == p && T[i].modo >= 4) return true; return false; }
+
+void escreve(int i, int v) {
+  if (T[i].modo == 5) {
+    v = constrain(v, 0, 255);
+#if ESP_ARDUINO_VERSION_MAJOR >= 3
+    ledcWrite(T[i].pino, v);
+#else
+    ledcWrite(i % 16, v);
+#endif
+  } else {
+    v = v ? 1 : 0;
+    digitalWrite(T[i].pino, v);
+  }
+  T[i].ultimo = v;
+}
+
+int ler(int i) {
+  if (T[i].modo < 3) return digitalRead(T[i].pino);
+  if (T[i].modo == 3) return analogRead(T[i].pino);
+  return T[i].ultimo;
+}
+
+void avisar(int i, int v) { Serial.print(T[i].id); Serial.print("->"); Serial.println(v); }
+
+void setup() {
+  Serial.begin(460800);
+  for (int i = 0; i < ND; i++) if (!naTabela(DP[i])) pinMode(DP[i], INPUT_PULLUP);
+  for (int i = 0; i < N; i++) {
+    int p = T[i].pino;
+    if (T[i].modo == 0) pinMode(p, INPUT_PULLUP);
+    else if (T[i].modo == 1) pinMode(p, INPUT_PULLDOWN);
+    else if (T[i].modo < 5) pinMode(p, T[i].modo == 4 ? OUTPUT : INPUT);
+    else {
+#if ESP_ARDUINO_VERSION_MAJOR >= 3
+      ledcAttach(p, 5000, 8);
+#else
+      ledcSetup(i % 16, 5000, 8);
+      ledcAttachPin(p, i % 16);
+#endif
+    }
+    if (T[i].modo >= 4) escreve(i, T[i].par);
+    else T[i].ultimo = T[i].bruto = ler(i);
+  }
+}
+
+void responder() {
+  long m = 0;
+  for (int i = 0; i < ND; i++) m |= (long)digitalRead(DP[i]) << i;
+  String s = "P " + String(m, HEX);
+  for (int i = 0; i < 6; i++) s += " " + String(ehSaida(AP[i]) ? 0 : analogRead(AP[i]));
+  Serial.println(s);
+}
+
+void comando(String s) {
+  s.trim();
+  if (s == "READ") { responder(); return; }
+  int a = s.indexOf(' ');
+  if (a < 0) return;
+  String c = s.substring(0, a), r = s.substring(a + 1);
+  r.trim();
+  if (c == "GET") {
+    if (r == "ALL") { for (int i = 0; i < N; i++) avisar(i, ler(i)); return; }
+    int i = achar(r);
+    if (i < 0) return;
+    avisar(i, ler(i));
+  } else if (c == "SET" || c == "TOGGLE") {
+    int b = r.indexOf(' ');
+    String id = b < 0 ? r : r.substring(0, b);
+    int i = achar(id);
+    if (i < 0 || T[i].modo < 4) return;
+    int v = (c == "TOGGLE") ? !T[i].ultimo : (b < 0 ? 0 : r.substring(b + 1).toInt());
+    escreve(i, v);
+    avisar(i, T[i].ultimo);
+  } else if (c == "MIC") {
+    int n = r.toInt();
+    if (n >= 1000 && n <= 16000) { micDt = 1000000UL / n; micProx = micros(); micN = 0; micOn = true; }
+    else micOn = false;
+  } else if (c == "TONE") {
+    int b = r.indexOf(' ');
+    int f = (b < 0 ? r : r.substring(0, b)).toInt();
+    int ms = b < 0 ? 0 : r.substring(b + 1).toInt();
+    tom(f, ms);
+  }
+}
+
+void loop() {
+  micLoop();
+  if (tomFim && (long)(millis() - tomFim) >= 0) tom(0, 0);
+  while (Serial.available()) {
+    char c = Serial.read();
+    if (c == '\\n') { comando(linha); linha = ""; }
+    else if (c != '\\r') { linha += c; if (linha.length() > 120) linha = ""; }
+  }
+  for (int i = 0; i < N; i++) {
+    if (T[i].modo >= 4 || !T[i].avisa) continue;
+    int v = ler(i);
+    if (T[i].modo < 3) {
+      if (v != T[i].bruto) { T[i].bruto = v; T[i].t = millis(); }
+      if (v != T[i].ultimo && millis() - T[i].t >= (unsigned long)T[i].par) { T[i].ultimo = v; avisar(i, v); }
+    } else if (abs(v - T[i].ultimo) >= T[i].par) { T[i].ultimo = v; avisar(i, v); }
+  }
+  micLoop();
+}
+`;
+}
+
+function fwMudou(re){try{localStorage.setItem('ondas-fw-v2',JSON.stringify(fw))}catch(_){}gerarFw();if(re)renderFw();}
+function renderFw(){
+  const tb=$('corpoFw');tb.innerHTML='';
+  const mk=(tag,props,ev,fn)=>{const e=document.createElement(tag);Object.assign(e,props);if(ev)e.addEventListener(ev,fn);return e;};
+  fw.forEach((r,i)=>{
+    const tr=document.createElement('tr'),td=(...n)=>{const c=document.createElement('td');c.append(...n);tr.appendChild(c);};
+    const sp=mk('select',{},'change',e=>{r.pino=+e.target.value;if(!fwModos(r.pino).includes(r.modo)){r.modo=fwModos(r.pino)[0];r.par=FWDEF[r.modo];}fwMudou(true);});
+    FWP.forEach(p=>sp.add(new Option('G'+p,p,false,p==r.pino)));
+    const sm=mk('select',{},'change',e=>{r.modo=+e.target.value;r.par=FWDEF[r.modo];fwMudou(true);});
+    fwModos(r.pino).forEach(m=>sm.add(new Option(FWM[m],m,false,m==r.modo)));
+    const id=mk('input',{className:'editable-name',value:r.id,placeholder:'ID'},'change',e=>{r.id=fwId(e.target.value)||('P'+r.pino);fwMudou(true);});
+    const par=mk('input',{type:'number',value:r.par,style:'width:70px'},'change',e=>{r.par=+e.target.value||0;fwMudou();});
+    const lbl=mk('div',{className:'mut',textContent:FWPAR[r.modo]});
+    const av=r.modo<4?mk('input',{type:'checkbox',checked:r.avisa},'change',e=>{r.avisa=e.target.checked;fwMudou();}):document.createTextNode('—');
+    const t=[mk('b',{id:'fwv-'+i,textContent:r.valor})];
+    if(r.modo==4)t.push(' ',mk('button',{textContent:'1'},'click',()=>tx('SET '+r.id+' 1')),mk('button',{textContent:'0'},'click',()=>tx('SET '+r.id+' 0')));
+    if(r.modo==5)t.push(' ',mk('input',{type:'range',min:0,max:255,value:0},'change',e=>tx('SET '+r.id+' '+e.target.value)));
+    td(sp);td(sm);td(id);td(par,lbl);td(av);td(...t);td(mk('button',{textContent:'✕'},'click',()=>{fw.splice(i,1);fwMudou(true);}));
+    tb.appendChild(tr);
+  });
+}
+function fwReceber(l){
+  const m=l.match(/^([A-Z0-9_]+)->(-?\d+)$/);if(!m)return;
+  fw.forEach((r,i)=>{if(r.id===m[1]){r.valor=m[2];const e=$('fwv-'+i);if(e)e.textContent=m[2];}});
+}
+$('bAddFw').onclick=()=>{const p=FWP.find(x=>!fw.some(r=>r.pino===x))||2;fw.push(fwNorm({pino:p,modo:fwModos(p)[0],id:'P'+p}));fwMudou(true);};
+$('bBaixarIno').onclick=()=>baixar('firmware-esp32.ino',$('sketch').value);
+renderFw();gerarFw();
+
+/* ---------- VOZ: microfone -> Serial | Ler->texto -> fala ---------- */
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+let micOn=false,micModo='serial',lerOn=false,recVoz=null,ultFala={t:'',ms:0};
+function vozMsg(t){$('vozSt').textContent=t;}
+function vozUI(){
+  $('bMic').textContent='🎤 Microfone: '+(micOn&&micModo=='serial'?'ligado':'desligado');$('bMic').classList.toggle('p',micOn&&micModo=='serial');
+  $('bMicIA').textContent='🎤🤖 Microfone → IA: '+(micOn&&micModo=='ia'?'ligado':'desligado');$('bMicIA').classList.toggle('p',micOn&&micModo=='ia');
+  $('bLer').textContent='🔊 Ler-texto: '+(lerOn?'ligado':'desligado');$('bLer').classList.toggle('p',lerOn);
+}
+function micIniciar(){
+  if(!micOn||!recVoz||speechSynthesis.speaking)return;
+  try{recVoz.lang=$('vozLang').value;recVoz.start();}catch(_){}
+}
+function micToggleNav(modo){
+  modo=modo||'serial';
+  if(!SR)return;
+  if(micOn&&micModo!==modo){micModo=modo;vozUI();vozMsg(modo=='ia'?'Ouvindo… (fale e a pergunta vai para a IA)':'Ouvindo… (fale e o texto vai para o Serial)');return;}
+  micModo=modo;micOn=!micOn;vozUI();
+  if(micOn){
+    recVoz=new SR();recVoz.continuous=true;recVoz.interimResults=false;
+    recVoz.onresult=e=>{for(let i=e.resultIndex;i<e.results.length;i++)if(e.results[i].isFinal){const t=e.results[i][0].transcript.trim();if(t){$('envio').value=t;if(micModo=='ia')iaPerguntar();else enviar();}}};
+    recVoz.onerror=e=>{
+      if(e.error==='not-allowed'||e.error==='service-not-allowed'){micOn=false;vozUI();vozMsg('');}
+    };
+    recVoz.onend=()=>setTimeout(micIniciar,300);
+    vozMsg(micModo=='ia'?'Ouvindo… (fale e a pergunta vai para a IA)':'Ouvindo… (fale e o texto vai para o Serial)');micIniciar();
+  }else{try{recVoz.stop()}catch(_){}vozMsg('');}
+}
+function lerToggle(){
+  if(!('speechSynthesis' in window))return;
+  lerOn=!lerOn;vozUI();if(!lerOn)speechSynthesis.cancel();
+}
+function falar(t){
+  const u=new SpeechSynthesisUtterance(t);u.lang=$('vozLang').value;u.rate=1.25;
+  u.onstart=()=>{if(micOn)try{recVoz.stop()}catch(_){}};   // o microfone pausa enquanto fala, para não ouvir a própria voz
+  u.onend=u.onerror=()=>{if(micOn)setTimeout(micIniciar,300);};
+  speechSynthesis.speak(u);
+}
+function lerTag(l){
+  if(!lerOn)return;
+  const m=l.match(/Ler-\s*>?\s*(.+)$/i);if(!m)return;
+  const t=m[1].trim(),n=performance.now();
+  if(!t||(ultFala.t===t&&n-ultFala.ms<1500))return;   // evita falar duas vezes se o ESP ecoar
+  ultFala={t,ms:n};falar(t);
+}
+$('bMic').onclick=()=>micToggle('serial');$('bMicIA').onclick=()=>micToggle('ia');$('bLer').onclick=lerToggle;vozUI();
+
+/* ---------- SOM: microfone do ESP32 (ou do PC) -> fala em texto (Whisper local) | alto-falante do ESP32 ---------- */
+const audNivelEl=$('micNivel'),audLimEl=$('micLimite');
+const aud={taxa:8000,pre:[],preMs:0,seg:[],segMs:0,vozMs:0,falando:false,silMs:0,hp:0,xAnt:0,envMs:0};
+let audCtx=null,audStream=null,audProc=null,nuvemOn=false,ultMicStop=0,whisperTestando=false;
+const audLimiar=()=>0.08*Math.pow(0.02,som.sens/100);
+function audReset(){aud.novo=true;aud.pre=[];aud.preMs=0;aud.seg=[];aud.segMs=0;aud.vozMs=0;aud.falando=false;aud.silMs=0;aud.hp=0;aud.xAnt=0;}
+
+// recebe um bloco de amostras (aproximadamente -1..1, ou 0..1 no ESP: o filtro tira o nível DC) e detecta o começo/fim da fala
+function audFrames(x,taxa){
+  if(!nuvemOn)return;
+  if(speechSynthesis.speaking){audReset();return;}   // não ouve a própria voz
+  const n=x.length,y=new Float32Array(n);let q=0;
+  if(aud.novo){aud.xAnt=x[0];aud.novo=false;}   // evita o estalo do filtro no primeiro bloco
+  for(let i=0;i<n;i++){const v=x[i]-aud.xAnt+0.995*aud.hp;aud.xAnt=x[i];aud.hp=v;y[i]=v;q+=v*v;}
+  const rms=Math.sqrt(q/n),dur=n/taxa*1000,alto=rms>audLimiar();aud.taxa=taxa;
+  const agora=performance.now();
+  if(agora-aud.envMs>70){aud.envMs=agora;audNivelEl.value=Math.min(100,rms/0.1*100);}
+  if(aud.falando){
+    aud.seg.push(y);aud.segMs+=dur;
+    if(alto){aud.silMs=0;aud.vozMs+=dur;}else aud.silMs+=dur;
+    if(aud.silMs>=700||aud.segMs>=15000)audFim();
+  }else if(alto){
+    aud.falando=true;aud.seg=aud.pre.concat([y]);aud.segMs=aud.preMs+dur;aud.vozMs=dur;aud.silMs=0;aud.pre=[];aud.preMs=0;
+    vozMsg('Ouvindo você…');
+  }else{
+    aud.pre.push(y);aud.preMs+=dur;
+    while(aud.preMs>300&&aud.pre.length>1){aud.preMs-=aud.pre[0].length/taxa*1000;aud.pre.shift();}
+  }
+}
+function audFim(){
+  const seg=aud.seg,taxa=aud.taxa,voz=aud.vozMs;
+  aud.seg=[];aud.segMs=0;aud.falando=false;aud.silMs=0;aud.vozMs=0;
+  if(voz<250){vozMsg('Ouvindo…');return;}
+  let n=0;seg.forEach(b=>n+=b.length);
+  const z=new Float32Array(n);let o=0,pico=0;
+  seg.forEach(b=>{z.set(b,o);o+=b.length;});
+  for(let i=0;i<n;i++){const a=Math.abs(z[i]);if(a>pico)pico=a;}
+  const wav=audWav(z,Math.min(30,0.9/Math.max(pico,1e-4)),taxa);
+  vozMsg('Reconhecendo…');
+  sttEnviar(wav).then(t=>{if(nuvemOn)micTexto(t);}).catch(e=>vozMsg('Erro no reconhecimento: '+e.message));
+}
+function audWav(z,g,taxa){
+  const n=z.length,b=new ArrayBuffer(44+n*2),v=new DataView(b),w=(o,t)=>{for(let i=0;i<t.length;i++)v.setUint8(o+i,t.charCodeAt(i));};
+  taxa=Math.round(taxa);
+  w(0,'RIFF');v.setUint32(4,36+n*2,true);w(8,'WAVE');w(12,'fmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);
+  v.setUint32(24,taxa,true);v.setUint32(28,taxa*2,true);v.setUint16(32,2,true);v.setUint16(34,16,true);w(36,'data');v.setUint32(40,n*2,true);
+  for(let i=0;i<n;i++)v.setInt16(44+i*2,Math.max(-1,Math.min(1,z[i]*g))*32767,true);
+  return new Blob([b],{type:'audio/wav'});
+}
+async function sttEnviar(wav){
+  if(!window.ondasWhisper)throw new Error('o Whisper local só funciona no app (npm start / .exe), não no navegador');
+  const lang=$('vozLang').value.slice(0,2);
+  return(await ondasWhisper.transcrever(new Uint8Array(await wav.arrayBuffer()),lang,som.modelo)||'').trim();
+}
+function micTexto(t){
+  t=(t||'').trim();
+  if(t.length<2||/amara\.org|legendas pela|obrigad[oa] por assistir/i.test(t)){vozMsg('Ouvindo…');return;}
+  vozMsg('Ouvi: '+t);
+  if(som.bipe)espTom(1500,70);
+  $('envio').value=t;
+  if(micModo=='ia')iaPerguntar();else enviar();
+}
+
+// linha "A <base64>" vinda do ESP32: bytes 0..255 do microfone
+function micAudioLinha(b64){
+  if(!(nuvemOn&&som.fonte=='esp')){
+    const n=performance.now();if(n-ultMicStop>2000){ultMicStop=n;tx('MIC 0');}   // o ESP ainda transmite e ninguém está ouvindo
+    return;
+  }
+  let bin;try{bin=atob(b64)}catch(_){return;}
+  const x=new Float32Array(bin.length);
+  for(let i=0;i<bin.length;i++)x[i]=bin.charCodeAt(i)/255;
+  audFrames(x,som.taxa);
+}
+
+async function nuvemLigar(){
+  audReset();
+  if(!window.ondasWhisper){vozMsg('O Whisper local só funciona no app (npm start / .exe), não no navegador.');return false;}
+  if(som.fonte=='esp'){
+    if(!via){vozMsg('Conecte o ESP32 primeiro (botão Conectar).');return false;}
+    tx('MIC '+som.taxa);
+  }else{
+    try{audStream=await navigator.mediaDevices.getUserMedia({audio:true});}
+    catch(_){vozMsg('Sem acesso ao microfone do PC.');return false;}
+    audCtx=new(window.AudioContext||window.webkitAudioContext)();
+    const f=Math.max(1,Math.floor(audCtx.sampleRate/16000)),taxa=audCtx.sampleRate/f;
+    audProc=audCtx.createScriptProcessor(4096,1,1);
+    audProc.onaudioprocess=e=>{
+      const x=e.inputBuffer.getChannelData(0),m=Math.floor(x.length/f),y=new Float32Array(m);
+      for(let i=0;i<m;i++){let a=0;for(let j=0;j<f;j++)a+=x[i*f+j];y[i]=a/f;}
+      audFrames(y,taxa);
+    };
+    audCtx.createMediaStreamSource(audStream).connect(audProc);audProc.connect(audCtx.destination);
+  }
+  nuvemOn=true;
+  vozMsg('Carregando o modelo Whisper "'+som.modelo+'"…');
+  ondasWhisper.carregar(som.modelo).then(i=>{somDevMsg(i);if(nuvemOn)vozMsg('Ouvindo…');}).catch(e=>{vozMsg('Erro no Whisper: '+e.message);});
+  return true;
+}
+function nuvemDesligar(){
+  nuvemOn=false;
+  if(som.fonte=='esp')tx('MIC 0');
+  try{if(audProc){audProc.onaudioprocess=null;audProc.disconnect();}}catch(_){}
+  try{if(audStream)audStream.getTracks().forEach(t=>t.stop());}catch(_){}
+  try{if(audCtx)audCtx.close();}catch(_){}
+  audProc=audStream=audCtx=null;audReset();audNivelEl.value=0;
+}
+function micDesligaSePreciso(){
+  if(micOn&&nuvemOn&&som.fonte=='esp'){nuvemDesligar();micOn=false;vozUI();vozMsg('ESP32 desconectado: microfone desligado.');}
+}
+function micToggle(modo){
+  modo=modo||'serial';
+  if(som.fonte=='nav')return micToggleNav(modo);
+  const txt=()=>micModo=='ia'?'Ouvindo… (a fala vai como pergunta à IA)':'Ouvindo… (a fala vai para o Serial)';
+  if(micOn&&micModo!==modo){micModo=modo;vozUI();vozMsg(txt());return;}
+  if(micOn){micOn=false;nuvemDesligar();vozUI();vozMsg('');return;}
+  micModo=modo;
+  nuvemLigar().then(ok=>{
+    if(!ok)return;
+    try{if(recVoz)recVoz.stop();}catch(_){}recVoz=null;
+    micOn=true;vozUI();vozMsg(txt());
+  });
+}
+
+// alto-falante do ESP32
+function espTom(f,ms){if(!via)return;tx('TONE '+Math.round(f)+' '+Math.round(ms||0));}
+function somSeq(l){let t=0;l.forEach(([f,ms])=>{setTimeout(()=>espTom(f,ms),t);t+=ms+40;});}
+
+function somDevMsg(i){const e=$('somDev');if(e&&i)e.textContent='Whisper '+i.modelo+' em '+(i.dispositivo=='cuda'?'GPU (CUDA)':'CPU');}
+function somUI(){
+  $('somFonte').value=som.fonte;$('somModelo').value=som.modelo;
+  $('somSens').value=som.sens;$('somTaxa').value=som.taxa;$('somMicPino').value=som.micPino;$('somSpkPino').value=som.spkPino;$('somBipe').checked=!!som.bipe;
+  audLimEl.textContent='corte: '+Math.round(audLimiar()/0.1*100)+' (acima disso é fala)';
+}
+(function somIniciar(){
+  [32,33,34,35,36,39].forEach(p=>$('somMicPino').add(new Option('G'+p,p)));
+  [25,26,27,32,33,23,22,21,19,18].forEach(p=>$('somSpkPino').add(new Option('G'+p,p)));
+  somUI();
+  if(window.ondasWhisper)ondasWhisper.onMsg(t=>{if(nuvemOn||whisperTestando)vozMsg(t);});   // progresso (download do modelo etc.)
+  const lig=(id,fn)=>$(id).addEventListener('change',fn);
+  lig('somFonte',e=>{
+    if(micOn){if(nuvemOn)nuvemDesligar();else try{recVoz.stop()}catch(_){}micOn=false;vozUI();vozMsg('');}
+    som.fonte=e.target.value;somSalvar();somUI();
+  });
+  lig('somModelo',e=>{som.modelo=e.target.value;somSalvar();$('somDev').textContent='';
+    if(nuvemOn&&window.ondasWhisper){vozMsg('Carregando o modelo Whisper "'+som.modelo+'"…');ondasWhisper.carregar(som.modelo).then(i=>{somDevMsg(i);if(nuvemOn)vozMsg('Ouvindo…');}).catch(x=>vozMsg('Erro no Whisper: '+x.message));}});
+  $('somSens').addEventListener('input',e=>{som.sens=+e.target.value;somUI();somSalvar();});
+  lig('somTaxa',e=>{som.taxa=Math.max(4000,Math.min(16000,+e.target.value||8000));e.target.value=som.taxa;somSalvar();if(nuvemOn&&som.fonte=='esp')tx('MIC '+som.taxa);});
+  lig('somMicPino',e=>{som.micPino=+e.target.value;somSalvar();gerarFw();});
+  lig('somSpkPino',e=>{som.spkPino=+e.target.value;somSalvar();gerarFw();});
+  lig('somBipe',e=>{som.bipe=e.target.checked;somSalvar();});
+  $('bTom').onclick=()=>espTom(+$('somFreq').value||880,+$('somMs').value||300);
+  $('bTomParar').onclick=()=>espTom(0,0);
+  $('bBip1').onclick=()=>somSeq([[880,150]]);
+  $('bBip2').onclick=()=>somSeq([[660,100],[990,160]]);
+  $('bBip3').onclick=()=>somSeq([[300,200],[200,350]]);
+  $('bSttTeste').onclick=async()=>{
+    if(!window.ondasWhisper){vozMsg('O Whisper local só funciona no app (npm start / .exe), não no navegador.');return;}
+    whisperTestando=true;vozMsg('Carregando o modelo "'+som.modelo+'" (na 1ª vez ele é baixado; pode demorar)…');
+    try{const i=await ondasWhisper.carregar(som.modelo);somDevMsg(i);vozMsg('Whisper "'+i.modelo+'" pronto.');}
+    catch(e){vozMsg('Erro: '+e.message);}
+    whisperTestando=false;
+  };
+})();
+
+/* ---------- IA (OpenCode) integrada ao Serial ---------- */
+let iaOcupada=false;
+const iaErro=e=>String((e&&e.message)||e).replace(/^Error invoking remote method '[^']*': (Error: )?/,'');
+const iaDorme=ms=>new Promise(r=>setTimeout(r,ms));
+function iaSt(t){$('iaSt').textContent=t;vozMsg(t);}
+function iaSistema(){
+  const tab=fw.map(r=>`- ${r.id}: pino G${r.pino}, ${FWM[r.modo]}${r.valor!=='—'?', valor atual '+r.valor:''}`).join('\n')||'(tabela vazia)';
+  let s=`${$('iaInstr').value.trim()}
+
+Pinos configurados no firmware:
+${tab}
+Para acionar uma saída, escreva numa linha própria: ENVIAR: SET ID valor (saída digital: 0 ou 1; PWM: 0 a 255) ou ENVIAR: TOGGLE ID. Use só IDs da lista acima, nunca invente comandos, e só envie quando o usuário pedir.`;
+  const n=Math.max(0,Math.min(300,+$('iaLinhas').value||0));
+  if(n){
+    const l=linhas.filter(Boolean).filter(x=>!/\] (P [0-9a-f]+ |IA: |Você → IA: |> IA->)/i.test(x)).slice(-n);
+    if(l.length)s+=`\nÚltimas ${l.length} linhas do Serial (o que o ESP32 enviou e o que foi enviado a ele):\n`+l.join('\n');
+  }
+  return s;
+}
+function iaAcoes(t,pai){
+  (t.match(/^\s*ENVIAR:\s*.+$/gim)||[]).forEach(l=>{
+    const c=l.replace(/^\s*ENVIAR:\s*/i,'').trim();
+    if(!/^(SET|TOGGLE|GET)\s+\S/i.test(c))return;
+    const b=document.createElement('button');b.className='p';b.style.cssText='display:block;margin:4px 0';b.textContent='Enviar ao ESP: '+c;
+    b.onclick=()=>{tx(c);addLinha('> '+c,'tx');verificarGatilhosSerial(c);lerTag(c);b.disabled=true;b.textContent='Enviado: '+c;};
+    pai.appendChild(b);
+  });
+}
+async function iaParaESP(texto){   // manda a resposta ao ESP em linhas curtas: IA->texto
+  verificarGatilhosSerial(texto);   // tudo que a IA manda conta para a tabela de gatilhos (a leitura em voz alta é feita à parte, só da resposta final)
+  const pal=texto.split(' ');let atual='';
+  const manda=async t=>{const l='IA->'+t;tx(l);addLinha('> '+l,'tx');await iaDorme(80);};
+  for(const p of pal){if((atual+' '+p).trim().length>100){await manda(atual.trim());atual=p;}else atual=(atual+' '+p).trim();}
+  if(atual)await manda(atual);
+}
+async function iaPerguntar(){
+  const q=$('envio').value.trim();if(!q||iaOcupada)return;
+  if(!window.ondasIA){iaSt('A IA (OpenCode) só funciona no app (npm start / .exe), não no navegador.');return;}
+  $('envio').value='';addLinha('Você → IA: '+q,'ia');
+  iaOcupada=true;$('bPerg').disabled=true;iaSt('IA pensando… (na 1ª vez o OpenCode precisa iniciar)');
+  const row=addLinha('IA: …','ia'),idx=linhas.length-1,ts=(linhas[idx].match(/^\[[^\]]*\]/)||[''])[0];
+  const mostra=t=>{row.lastChild.textContent='IA: '+t;if(linhas[idx]!==undefined&&linhas[idx]!==null)linhas[idx]=ts+' IA: '+t;if($('auto').checked)$('log').scrollTop=$('log').scrollHeight;};
+  try{
+    let txt=await ondasIA.perguntar($('iaModelo').value.trim(),iaSistema(),q);
+    txt=String(txt||'').replace(/<think>[\s\S]*?(<\/think>|$)/g,'').trim();
+    mostra(txt||'(sem resposta)');
+    iaAcoes(txt,row);
+    const limpo=txt.replace(/^\s*ENVIAR:.*$/gim,'').replace(/[*_`#>]/g,'').replace(/\s+/g,' ').trim();
+    if(lerOn&&limpo)falar(limpo.replace(/Ler-\s*>?\s*/gi,''));
+    if($('iaEnviaESP').checked&&limpo){iaSt('Enviando a resposta ao ESP…');await iaParaESP(limpo);}
+    iaSt('');
+  }catch(e){
+    const m=iaErro(e);mostra('ERRO — '+m);iaSt('Erro na IA: '+m);
+  }
+  iaOcupada=false;$('bPerg').disabled=false;
+}
+$('bPerg').onclick=iaPerguntar;
+$('bIaLimpar').onclick=async()=>{try{if(window.ondasIA)await ondasIA.limpar();}catch(_){}iaSt('Memória da conversa limpa.');};
+$('iaModelo').value=(()=>{try{return localStorage.getItem('ondas-ia-modelo')||''}catch(_){return''}})();
+$('iaModelo').addEventListener('change',()=>{try{localStorage.setItem('ondas-ia-modelo',$('iaModelo').value.trim())}catch(_){}});
+if(window.ondasIA)ondasIA.onMsg(t=>{if(iaOcupada||iaTestando)iaSt(t);});
+let iaTestando=false;
+$('bIaTeste').onclick=async()=>{
+  if(!window.ondasIA){iaSt('A IA (OpenCode) só funciona no app (npm start / .exe), não no navegador.');return;}
+  iaTestando=true;iaSt('Iniciando o OpenCode…');
+  try{
+    const r=await ondasIA.testar();
+    $('iaLista').innerHTML='';r.modelos.forEach(x=>$('iaLista').appendChild(new Option(x)));
+    iaSt(r.modelos.length?'OpenCode '+(r.versao||'')+' conectado. '+r.modelos.length+' modelos'+(r.padrao?' (padrão: '+r.padrao+')':'')+'. Clique no campo Modelo para escolher.':'OpenCode conectado, mas nenhum provedor configurado: rode "opencode auth login" no terminal.');
+  }catch(e){iaSt('Erro: '+iaErro(e));}
+  iaTestando=false;
+};
+
+/* ---------- INSTRUÇÕES DA IA (salvas no projeto) ---------- */
+const IA_PADRAO=`Sua resposta final é lida em voz alta pelo painel, então escreva como se estivesse falando: frases curtas e naturais, sem emojis, listas, asteriscos nem símbolos.
+
+Nunca diga a sigla HTML. Quando precisar se referir a este painel, diga software.
+
+PEDIDO DE EXPLICAÇÃO: quando o usuário mandar a palavra explicação, responda somente com o texto abaixo, sem acrescentar nem mudar nada:
+Bom dia a todos e a todas! Sejam muito bem-vindos. A seguir, apresentarei o funcionamento deste software. Ele é um painel que se comunica com a placa ESP32 e mostra, em tempo real, as formas de onda dos pinos, como um osciloscópio simples. Também possui um monitor serial, no qual é possível acompanhar tudo o que a placa envia e enviar comandos a ela. Uma tabela de gatilhos transforma essas mensagens em contadores, sensores e cartões na tela. Além disso, o software gera o programa que é gravado no ESP32, aceita comandos por voz, exibe textos em um display e conta com uma inteligência artificial que responde perguntas e fala em voz alta. Tudo isso para proporcionar uma melhor gestão de informações.
+
+Você é o assistente do painel Tradutor de Ondas ESP32, um software que conversa com um ESP32 pela porta USB (Serial, 460800). Responda sempre em português, de forma curta e simples, para quem está aprendendo eletrônica.
+
+Como o painel funciona (o básico):
+- Ele lê o ESP32 pelo USB e desenha as formas de onda dos pinos (digitais e analógicos) em tempo real.
+- A aba Serial mostra tudo que o ESP32 manda e deixa enviar texto para ele. O botão do microfone envia ao Serial o que o usuário fala, e o botão do microfone com IA envia a fala como pergunta para você. O painel só lê em voz alta a sua resposta final quando o botão do alto-falante (Ler-texto) estiver ligado; a resposta sempre aparece escrita no log.
+- Você (a IA) está integrada à aba Serial: o usuário usa o botão Perguntar à IA ou o microfone com IA. Você enxerga as últimas linhas do Serial, e a sua resposta aparece no log e é enviada ao ESP32 em linhas que começam com IA->.
+- A aba de Programação tem a tabela de gatilhos: regras do tipo quando acontecer X, faça Y (por exemplo, enviar um texto ao ESP32).
+- A aba Tabela do Firmware define o que cada pino faz (entrada, saída, analógica ou PWM) e gera o programa que é gravado no ESP32 pela Arduino IDE.
+- O ESP32 avisa mudanças no formato ID->valor (ex.: ID->1) e aceita os comandos SET, TOGGLE e GET.
+- O painel também pode mandar texto para um display OLED ligado ao ESP32.
+- O botão Salvar projeto guarda tudo isso, inclusive estas instruções.
+
+Se não souber algo sobre o circuito do usuário, diga que não sabe e pergunte. Não invente pinos nem comandos.`;
+function iaInstrSalvar(){try{localStorage.setItem('esp-ia-instr',$('iaInstr').value)}catch(_){}}
+try{$('iaInstr').value=localStorage.getItem('esp-ia-instr')||IA_PADRAO;}catch(_){$('iaInstr').value=IA_PADRAO;}
+$('iaInstr').addEventListener('input',iaInstrSalvar);
+$('bIaPadrao').onclick=()=>{$('iaInstr').value=IA_PADRAO;iaInstrSalvar();};
+
+carregarRegrasLocalStorage();
+renderizarTabelaRegras();
+aplicar();
+</script>
+</body>
+</html>
